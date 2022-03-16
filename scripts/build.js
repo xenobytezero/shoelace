@@ -1,3 +1,4 @@
+
 import browserSync from 'browser-sync';
 import chalk from 'chalk';
 import { execSync } from 'child_process';
@@ -9,6 +10,7 @@ import getPort, { portNumbers } from 'get-port';
 import { globby } from 'globby';
 import open from 'open';
 import copy from 'recursive-copy';
+import path from 'path';
 
 const { bundle, copydir, dir, serve, types } = commandLineArgs([
   { name: 'bundle', type: Boolean },
@@ -28,6 +30,7 @@ fs.mkdirSync(outdir, { recursive: true });
     execSync(`node scripts/make-metadata.js --outdir "${outdir}"`, { stdio: 'inherit' });
     execSync(`node scripts/make-search.js --outdir "${outdir}"`, { stdio: 'inherit' });
     execSync(`node scripts/make-react.js --outdir "${outdir}"`, { stdio: 'inherit' });
+    execSync(`node scripts/make-reg.js --outdir "${outdir}"`, { stdio: 'inherit' });
     execSync(`node scripts/make-vscode-data.js --outdir "${outdir}"`, { stdio: 'inherit' });
     execSync(`node scripts/make-web-types.js --outdir "${outdir}"`, { stdio: 'inherit' });
     execSync(`node scripts/make-themes.js --outdir "${outdir}"`, { stdio: 'inherit' });
@@ -78,7 +81,35 @@ fs.mkdirSync(outdir, { recursive: true });
         ? alwaysExternal
         : [...alwaysExternal, '@floating-ui/dom', '@shoelace-style/animations', 'lit', 'qr-creator'],
       splitting: true,
-      plugins: []
+      plugins: [
+        {
+          name: 'ce-stripper',
+          setup: build => {
+            build.onLoad({ filter: /\.ts$/ }, async args => {
+
+              const p =  path.parse(args.path);
+
+              // only do this for the components
+              if (!p.dir.includes('src\\components')) {
+                return null;
+              }
+
+              // check that we are not a styles or test file, since we are
+              // not able to do that from a filter
+              if (p.name.endsWith('.styles') || p.name.endsWith('.test')) {
+                return null;
+              }
+
+              const text = await fs.promises.readFile(args.path, 'utf8');
+              const stripped = text.replace(/@customElement\('.*'\)/, '');
+              return {
+                contents: stripped,
+                loader: 'ts'
+              };
+            });
+          }
+        }
+      ]
     })
     .catch(err => {
       console.error(chalk.red(err));

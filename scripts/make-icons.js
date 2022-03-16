@@ -1,3 +1,5 @@
+/* eslint-env node */
+
 //
 // This script downloads and generates icons and icon metadata.
 //
@@ -11,11 +13,16 @@ import { readFileSync, mkdirSync } from 'fs';
 import { stat, readFile, writeFile } from 'fs/promises';
 import { globby } from 'globby';
 import path from 'path';
+import { getPathToModule } from './shared.js';
+
 
 const { outdir } = commandLineArgs({ name: 'outdir', type: String });
 const iconDir = path.join(outdir, '/assets/icons');
 
-const iconPackageData = JSON.parse(readFileSync('./node_modules/bootstrap-icons/package.json', 'utf8'));
+const bootstrapIconPath = getPathToModule('bootstrap-icons');
+const packageJsonPath = path.join(bootstrapIconPath, 'package.json');
+
+const iconPackageData = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
 let numIcons = 0;
 
 (async () => {
